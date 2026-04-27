@@ -19,15 +19,18 @@ int main(int argc, char *argv[])
     int coid;
     my_msg_t msg;
     my_reply_t reply;
-
+    int status;
     if (argc < 2) {
         printf("Usage: %s <server_pid>\n", argv[0]);
         return -1;
     }
 
     int server_pid = atoi(argv[1]);  // lấy PID từ argument
+    int child_pid = atoi(argv[2]);  // lấy child PID từ argument
 
-    coid = ConnectAttach(ND_LOCAL_NODE, server_pid, 1, 0, 0);
+    printf("Connecting to server PID=%d CHID=%d\n", server_pid, child_pid);
+    
+    coid = ConnectAttach(ND_LOCAL_NODE, server_pid, child_pid, 0, 0);
     if (coid == -1) {
         perror("ConnectAttach");
         return -1;
@@ -38,9 +41,14 @@ int main(int argc, char *argv[])
 
     printf("Client sending: %d + %d , coid = %d\n", msg.a, msg.b, coid);
 
-    MsgSend(coid, &msg, sizeof(msg), &reply, sizeof(reply));
+    status = MsgSend(coid, &msg, sizeof(msg), &reply, sizeof(reply));
+    if (status == -1) {
+        ConnectDetach(coid);
+        return -1;
+    }
 
     printf("Client received reply: sum = %d\n", reply.sum);
 
+    ConnectDetach(coid);
     return 0;
 }

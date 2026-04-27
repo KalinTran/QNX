@@ -20,7 +20,7 @@ int main(void)
     my_msg_t msg;
     my_reply_t reply;
 
-    struct _msg_info64 info;   // <-- thêm cái này
+    struct _msg_info64 info;
 
     // Create channel
     chid = ChannelCreate(0);
@@ -32,7 +32,6 @@ int main(void)
     printf("Server PID=%d, CHID=%d\n", getpid(), chid);
 
     while (1) {
-        memset(&msg, 0, sizeof(msg));
         memset(&info, 0, sizeof(info));
 
         // truyền &info vào đây
@@ -42,9 +41,13 @@ int main(void)
             perror("MsgReceive");
             continue;
         }
-        
-        
-        // 🔥 In thông tin msg_info64
+
+        if (rcvid == 0) {
+            // Đây là pulse
+            printf("Received pulse\n");
+            continue;
+        }
+
         printf("---- MSG INFO ----\n");
         printf("pid        : %d\n", info.pid);
         printf("tid        : %d\n", info.tid);
@@ -57,15 +60,18 @@ int main(void)
         printf("flags      : 0x%x\n", info.flags);
         printf("-------------------\n");
         
-        if(info.msglen != sizeof(msg)) {
-            // Đây là một pulse, không phải message
-            MsgReply(rcvid, 0, NULL, 0);
+        if (info.msglen < sizeof(msg)) {
+            printf("Message too small\n");
+            MsgError(rcvid, EINVAL);
             continue;
         }
+
         printf("Server received: %d + %d rcvid=%d\n", msg.a, msg.b, rcvid);
 
         reply.sum = msg.a + msg.b;
-        MsgReply(rcvid, 0, &reply, sizeof(reply));
+        if (MsgReply(rcvid, 0, &reply, sizeof(reply)) == -1) {
+            perror("MsgReply failed");
+        }
     }
 
     return 0;
